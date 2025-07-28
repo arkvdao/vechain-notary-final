@@ -8,7 +8,7 @@ export default async function handler(req, res) {
         // --- THE FIX IS HERE: DECODE THE KEY ---
         const encodedKey = process.env.VECHAIN_PRIVATE_KEY_B64;
         if (!encodedKey) {
-            return buildErrorResponse(res, 500, 'Server Config Error', 'VECHAIN_PRIVATE_KEY_B68 is not set.');
+            return buildErrorResponse(res, 500, 'Server Config Error', 'VECHAIN_PRIVATE_KEY_B64 is not set.');
         }
         // Decode the Base64 string back to the original mnemonic phrase
         const mnemonicString = Buffer.from(encodedKey, 'base64').toString('ascii');
