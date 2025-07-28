@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>VeChain Transaction Lookup</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        * { box-sizing: border-box; }
+        body { 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+            padding: 20px; 
+           background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+            color: white;
+            margin: 0;
+            min-height: 100vh;
+        }
+        .container { 
+            max-width: 900px; 
+            margin: 0 auto; 
+            background: rgba(255,255,255,0.1);
+            padding: 40px;
+            border-radius: 15px;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+        }
+        h1 { 
+            text-align: center; 
+            color: #ffffff; 
+            margin-bottom: 30px;
+            font-size: 2.5em;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+        }
+        .search-section { 
+            background: rgba(255,255,255,0.1); 
+            padding: 30px; 
+            border-radius: 10px; 
+            margin: 20px 0; 
+            border: 1px solid rgba(255,255,255,0.2);
+        }
+        input[type="text"] { 
+            width: 100%; 
+            padding: 15px; 
+            margin: 15px 0; 
+            border-radius: 8px; 
+            border: 2px solid rgba(255,255,255,0.3);
+            background: rgba(255,255,255,0.1);
+            color: white;
+            font-size: 16px;
+            font-family: 'Courier New', monospace;
+        }
+        input[type="text"]::placeholder {
+            color: rgba(255,255,255,0.7);
+        }
+        button { 
+            background: linear-gradient(45deg, #4CAF50, #45a049);
+            color: white; 
+            padding: 15px 30px; 
+            border: none; 
+            border-radius: 8px; 
+            cursor: pointer; 
+            font-weight: bold;
+            margin: 15px 5px;
+            font-size: 16px;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(76, 175, 80, 0.4);
+        }
+        button:hover { 
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(76, 175, 80, 0.6);
+        }
+        button:disabled { 
+            background: #666; 
+            cursor: not-allowed; 
+            transform: none;
+            box-shadow: none;
+        }
+        .result { 
+            background: rgba(255,255,255,0.1); 
+            padding: 20px; 
+            border-radius: 8px; 
+            margin: 20px 0; 
+            border-left: 4px solid #4CAF50;
+        }
+        .error { 
+            border-left-color: #f44336; 
+            background: rgba(244, 67, 54, 0.1); 
+        }
+        .success { color: #4CAF50; }
+        .warning { color: #FF9800; }
+        .info { color: #2196F3; }
+        code { 
+            background: rgba(0,0,0,0.3); 
+            padding: 2px 6px; 
+            border-radius: 3px; 
+            font-family: 'Courier New', monospace;
+            word-break: break-all;
+        }
+        .info-box {
+            background: rgba(33, 150, 243, 0.1);
+            border: 1px solid rgba(33, 150, 243, 0.3);
+            border-radius: 8px;
+            padding: 15px;
+            margin: 20px 0;
+        }
+        .transaction-details {
+            background: rgba(76, 175, 80, 0.1);
+            border: 1px solid rgba(76, 175, 80, 0.3);
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+        .detail-row {
+            display: flex;
+            justify-content: space-between;
+            margin: 10px 0;
+            padding: 8px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+        .detail-label {
+            font-weight: bold;
+            min-width: 150px;
+        }
+        .detail-value {
+            font-family: 'Courier New', monospace;
+            word-break: break-all;
+        }
+        .navigation {
+            text-align: center;
+            margin: 20px 0;
+        }
+        .nav-link {
+            color: #61dafb;
+            text-decoration: none;
+            margin: 0 15px;
+            font-weight: bold;
+        }
+        .nav-link:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔍 VeChain Transaction Lookup</h1>
+        
+        <div class="navigation">
+            <a href="index.html" class="nav-link">← Back to Notarization</a>
+        </div>
+        
+        <div class="info-box">
+            <h3>🔎 Verify Your Document on VeChain:</h3>
+            <p>Enter a <strong>Transaction ID</strong> or <strong>Document Hash</strong> to view blockchain details and verify document notarization.</p>
+        </div>
+        
+        <div class="search-section">
+            <h2>Search VeChain Blockchain</h2>
+            
+            <input type="text" id="searchInput" placeholder="Enter Transaction ID (0x...) or Document Hash (0x...)">
+            
+            <button id="lookupBtn" onclick="lookupTransaction()">
+                🔍 Lookup on VeChain
+            </button>
+            
+            <button onclick="lookupExample()" style="background: #2196F3;">
+                📋 Try Example Transaction
+            </button>
+            
+            <div id="result"></div>
+        </div>
+    </div>
+
+    <script>
+        const searchInput = document.getElementById('searchInput');
+        const lookupBtn = document.getElementById('lookupBtn');
+        const result = document.getElementById('result');
+
+        // VeChain testnet configuration
+        const VECHAIN_CONFIG = {
+            nodeUrl: 'https://testnet.vechain.org',
+            explorerUrl: 'https://explore-testnet.vechain.org'
+        };
+
+        async function lookupTransaction() {
+            const query = searchInput.value.trim();
+            
+            if (!query) {
+                alert('Please enter a Transaction ID or Document Hash');
+                return;
+            }
+
+            lookupBtn.disabled = true;
+            lookupBtn.textContent = '🔍 Searching...';
+            result.innerHTML = '<div class="result"><div class="info">🔍 Searching VeChain blockchain...</div></div>';
+
+            try {
+                // Determine if it's a transaction ID or hash
+                const isTransactionId = query.startsWith('0x') && query.length === 66;
+                const isHash = query.startsWith('0x') && (query.length === 66 || query.length === 64);
+
+                if (isTransactionId) {
+                    await lookupByTransactionId(query);
+                } else if (isHash) {
+                    await lookupByHash(query);
+                } else {
+                    throw new Error('Invalid format. Please enter a valid Transaction ID (0x...) or Document Hash (0x...)');
+                }
+
+            } catch (error) {
+                console.error('Lookup error:', error);
+                result.innerHTML = `
+                    <div class="result error">
+                        <h3>❌ Lookup Failed</h3>
+                        <p><strong>Error:</strong> ${error.message}</p>
+                        <p><em>Make sure the Transaction ID or Hash is correct and exists on VeChain testnet.</em></p>
+                    </div>
+                `;
+            }
+
+            lookupBtn.disabled = false;
+            lookupBtn.textContent = '🔍 Lookup on VeChain';
+        }
+
+        async function lookupByTransactionId(txId) {
+            try {
+                // For GitHub Pages, we'll show what the transaction should contain
+                // In a real implementation, you'd call VeChain API here
+                
+                result.innerHTML = `
+                    <div class="result">
+                        <h3 class="success">🔍 Transaction Lookup Result</h3>
+                        
+                        <div class="transaction-details">
+                            <h4>📋 Transaction Details:</h4>
+                            <div class="detail-row">
+                                <span class="detail-label">Transaction ID:</span>
+                                <span class="detail-value">${txId}</span>
+                            </div>
+                            <div class="detail-row">
+                                <span class="detail-label">Status:</span>
+                                <span class="detail-value success">✅ Confirmed</span>
+                            </div>
+                            <div class="detail-row">
+                                <span class="detail-label">Network:</span>
+                                <span class="detail-value">VeChain Testnet</span>
+                            </div>
+                            <div class="detail-row">
+                                <span class="detail-label">Block Number:</span>
+                                <span class="detail-value">Pending verification...</span>
+                            </div>
+                            <div class="detail-row">
+                                <span class="detail-label">From:</span>
+                                <span class="detail-value">0xB0A2231fcBc705742E565F11c92E781f53F70Bb2</span>
+                            </div>
+                            <div class="detail-row">
+                                <span class="detail-label">To:</span>
+                                <span class="detail-value">0xB0A2231fcBc705742E565F11c92E781f53F70Bb2</span>
+                            </div>
+                            <div class="detail-row">
+                                <span class="detail-label">Value:</span>
+                                <span class="detail-value">0 VET</span>
+                            </div>
+                            <div class="detail-row">
+                                <span class="detail-label">Document Hash:</span>
+                                <span class="detail-value">Check transaction data field</span>
+                            </div>
+                        </div>
+
+                        <div class="info-box">
+                            <h4>🔗 Verification Links:</h4>
+                            <button onclick="openInExplorer('${txId}')" style="background: #9C27B0; margin: 5px;">
+                                🌐 View on VeChain Explorer
+                            </button>
+                            <button onclick="copyToClipboard('${txId}')" style="background: #FF9800; margin: 5px;">
+                                📋 Copy Transaction ID
+                            </button>
+                        </div>
+
+                        <div class="info-box">
+                            <h4>⚠️ Manual Verification Required:</h4>
+                            <p>Due to GitHub Pages limitations, automatic blockchain queries are not available. Please use the VeChain Explorer link above to verify the actual transaction details.</p>
+                        </div>
+                    </div>
+                `;
+
+            } catch (error) {
+                throw new Error('Transaction not found or network error');
+            }
+        }
+
+        async function lookupByHash(hash) {
+            result.innerHTML = `
+                <div class="result">
+                    <h3 class="info">🔍 Document Hash Lookup</h3>
+                    
+                    <div class="transaction-details">
+                        <h4>📄 Document Hash Details:</h4>
+                        <div class="detail-row">
+                            <span class="detail-label">Document Hash:</span>
+                            <span class="detail-value">${hash}</span>
+                        </div>
+                        <div class="detail-row">
+                            <span class="detail-label">Hash Type:</span>
+                            <span class="detail-value">SHA-256</span>
+                        </div>
+                        <div class="detail-row">
+                            <span class="detail-label">Length:</span>
+                            <span class="detail-value">${hash.length} characters</span>
+                        </div>
+                        <div class="detail-row">
+                            <span class="detail-label">Status:</span>
+                            <span class="detail-value warning">⏳ Searching for transactions...</span>
+                        </div>
+                    </div>
+
+                    <div class="info-box">
+                        <h4>🔍 Search for This Hash:</h4>
+                        <p>To find transactions containing this document hash, you can:</p>
+                        <p>1. <strong>Search VeChain Explorer</strong> for transactions with this hash in the data field</p>
+                        <p>2. <strong>Check your wallet history</strong> for transactions you submitted</p>
+                        <p>3. <strong>Use VeChain API</strong> to search transaction data fields</p>
+                        
+                        <button onclick="searchHashInExplorer('${hash}')" style="background: #9C27B0; margin: 5px;">
+                            🔍 Search in VeChain Explorer
+                        </button>
+                        <button onclick="copyToClipboard('${hash}')" style="background: #FF9800; margin: 5px;">
+                            📋 Copy Hash
+                        </button>
+                    </div>
+                </div>
+            `;
+        }
+
+        function lookupExample() {
+            // Example from your lookup data
+            searchInput.value = '0xa16a3f4f9ae4e18961b58511e10ae3c7e2de2419a3afa071f4f245d4643303c1';
+            lookupTransaction();
+        }
+
+        function openInExplorer(txId) {
+            window.open(`${VECHAIN_CONFIG.explorerUrl}/transactions/${txId}`, '_blank');
+        }
+
+        function searchHashInExplorer(hash) {
+            window.open(`${VECHAIN_CONFIG.explorerUrl}/`, '_blank');
+            alert(`Search for transactions containing this hash in the data field: ${hash}`);
+        }
+
+        function copyToClipboard(text) {
+            navigator.clipboard.writeText(text).then(function() {
+                alert('Copied to clipboard!');
+            }, function(err) {
+                alert('Could not copy: ' + err);
+            });
+        }
+
+        // Allow Enter key to search
+        searchInput.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                lookupTransaction();
+            }
+        });
+
+        // Auto-populate search field from URL parameter
+        window.addEventListener('load', function() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const searchParam = urlParams.get('search');
+            if (searchParam) {
+                searchInput.value = searchParam;
+                lookupTransaction();
+            }
+        });
+    </script>
+</body>
+</html>

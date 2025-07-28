@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>Lookup VeChain Transactions</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- Reusing the same great style from the main page -->
+    <style>
+        * { box-sizing: border-box; }
+        body { 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+            padding: 20px; 
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            color: white;
+            margin: 0;
+            min-height: 100vh;
+        }
+        .container { 
+            max-width: 900px; 
+            margin: 0 auto; 
+            background: rgba(255,255,255,0.1);
+            padding: 40px;
+            border-radius: 15px;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+        }
+        h1 { 
+            text-align: center; 
+            color: #ffffff; 
+            margin-bottom: 30px;
+            font-size: 2.5em;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+        }
+        .navigation {
+            text-align: center;
+            margin: 20px 0;
+        }
+        .nav-link {
+            color: #61dafb;
+            text-decoration: none;
+            margin: 0 15px;
+            font-weight: bold;
+        }
+        .nav-link:hover {
+            text-decoration: underline;
+        }
+        #loader {
+            text-align: center;
+            font-size: 1.2em;
+            padding: 40px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        th, td {
+            padding: 15px;
+            text-align: left;
+            border-bottom: 1px solid rgba(255,255,255,0.2);
+        }
+        th {
+            background-color: rgba(255,255,255,0.2);
+        }
+        code { 
+            background: rgba(0,0,0,0.3); 
+            padding: 2px 6px; 
+            border-radius: 3px; 
+            font-family: 'Courier New', monospace;
+            word-break: break-all;
+            font-size: 0.9em;
+        }
+        a {
+            color: #61dafb;
+            text-decoration: none;
+        }
+        a:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔍 Transaction Lookup</h1>
+        <div class="navigation">
+            <a href="index.html" class="nav-link">🏠 Home</a>
+        </div>
+
+        <div id="loader">Loading transaction history from the blockchain...</div>
+        
+        <div id="transaction-list" style="display:none;">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Timestamp</th>
+                        <th>Document Hash (Data)</th>
+                        <th>Transaction ID</th>
+                    </tr>
+                </thead>
+                <tbody id="transaction-table-body">
+                    <!-- Rows will be inserted here by JavaScript -->
+                </tbody>
+            </table>
+        </div>
+        <div id="error-message" style="color: #f44336;"></div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', async () => {
+            const loader = document.getElementById('loader');
+            const transactionListDiv = document.getElementById('transaction-list');
+            const tableBody = document.getElementById('transaction-table-body');
+            const errorMessageDiv = document.getElementById('error-message');
+
+            try {
+                // Fetch transactions from our new API endpoint
+                const response = await fetch('/api/get-transactions');
+                const result = await response.json();
+
+                if (!response.ok || !result.success) {
+                    throw new Error(result.error?.message || 'Failed to fetch transactions.');
+                }
+
+                const transactions = result.data;
+
+                if (transactions.length === 0) {
+                    loader.textContent = 'No notarization transactions found for this address.';
+                    return;
+                }
+
+                // Populate the table
+                transactions.forEach(tx => {
+                    const row = document.createElement('tr');
+                    const explorerUrl = `https://explore-testnet.vechain.org/transactions/${tx.id}`;
+                    
+                    // Format date for readability
+                    const date = new Date(tx.timestamp * 1000 ).toLocaleString();
+
+                    row.innerHTML = `
+                        <td>${date}</td>
+                        <td><code>${tx.hash}</code></td>
+                        <td><a href="${explorerUrl}" target="_blank" title="View on Explorer">${tx.id.substring(0, 10)}...</a></td>
+                    `;
+                    tableBody.appendChild(row);
+                });
+
+                // Show the table and hide the loader
+                loader.style.display = 'none';
+                transactionListDiv.style.display = 'block';
+
+            } catch (error) {
+                console.error('Error fetching transactions:', error);
+                loader.style.display = 'none';
+                errorMessageDiv.textContent = `Error: ${error.message}`;
+            }
+        });
+    </script>
+</body>
+</html>

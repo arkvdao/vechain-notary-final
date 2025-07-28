@@ -1,0 +1,13 @@
+{
+  "name": "vechain-notary",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "start": "vercel dev"
+  },
+  "dependencies": {
+    "@vechain/sdk-core": "^2.0.0",
+    "@vechain/sdk-network": "^2.0.0",
+    "dotenv": "^16.4.5"
+  }
+}
