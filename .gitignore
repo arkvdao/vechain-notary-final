@@ -1,0 +1,23 @@
+# Environment variables - DO NOT UPLOAD TO GITHUB
+.env
+.env.local
+.env.production
+
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+build/
+.vercel/
+vercel.json
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# IDE configuration
+.vscode/
+.idea/
