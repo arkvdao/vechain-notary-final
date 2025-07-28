@@ -1,74 +1,39 @@
-// api/notarize.js
-
-import { ThorClient, VechainProvider } from "@vechain/sdk-network";
+// api/notarize.js - DECODING VERSION
+import { ThorClient } from "@vechain/sdk-network";
 import { buildErrorResponse, buildSuccessResponse } from "../_utils/response-builder";
-import { TransactionHandler, secp256k1 } from "@vechain/sdk-core";
-
-// Load private key from environment variables
-const privateKey = process.env.VECHAIN_PRIVATE_KEY;
-if (!privateKey) {
-  throw new Error("VECHAIN_PRIVATE_KEY is not set in environment variables.");
-}
-const account = secp256k1.deriveKey(Buffer.from(privateKey, 'hex')).deriveAddress();
-
-// Initialize ThorClient to connect to the VeChain testnet
-const thorClient = new ThorClient(process.env.VECHAIN_NODE_URL || "https://testnet.vechain.org/" );
-const provider = new VechainProvider(thorClient, undefined, false); // Fee delegation disabled
+import { TransactionHandler, cry } from "@vechain/sdk-core";
 
 export default async function handler(req, res) {
-  if (req.method !== 'POST') {
-    return buildErrorResponse(res, 405, 'Method Not Allowed');
-  }
+    try {
+        // --- THE FIX IS HERE: DECODE THE KEY ---
+        const encodedKey = process.env.VECHAIN_PRIVATE_KEY_B64;
+        if (!encodedKey) {
+            return buildErrorResponse(res, 500, 'Server Config Error', 'VECHAIN_PRIVATE_KEY_B64 is not set.');
+        }
+        // Decode the Base64 string back to the original mnemonic phrase
+        const mnemonicString = Buffer.from(encodedKey, 'base64').toString('ascii');
+        
+        const privateKeyBytes = cry.mnemonic.toPrivateKey(mnemonicString.split(' '));
+        const account = cry.secp256k1.deriveAddress(privateKeyBytes);
+        
+        const thorClient = new ThorClient(process.env.VECHAIN_NODE_URL);
+        const { hash } = req.body;
+        if (!hash || !hash.startsWith('0x')) {
+            return buildErrorResponse(res, 400, 'Invalid hash parameter.');
+        }
 
-  try {
-    const { hash } = req.body;
+        const clauses = [{ to: account, value: '0x0', data: hash }];
+        const gasResult = await thorClient.gas.estimateGas(clauses, account);
+        const blockRef = await thorClient.blocks.getBestBlockRef();
+        const chainTag = await thorClient.thor.getChainTag();
+        
+        const body = { clauses, gas: gasResult.totalGas, blockRef, chainTag, gasPriceCoef: 128, expiration: 32, nonce: Date.now() };
+        const signature = cry.secp256k1.sign(TransactionHandler.signingHash(body), privateKeyBytes);
+        const { id } = await thorClient.transactions.sendTransaction({ raw: TransactionHandler.encode(body, false), signature, origin: account });
 
-    if (!hash || typeof hash !== 'string' || !hash.startsWith('0x')) {
-      return buildErrorResponse(res, 400, 'Invalid or missing hash parameter.');
+        return buildSuccessResponse(res, { transactionId: id });
+    } catch (error) {
+        return buildErrorResponse(res, 500, 'API execution failed.', { message: error.message });
     }
-
-    // 1. Build the transaction clauses
-    const clauses = [{
-      to: account, // Send to self
-      value: 0,
-      data: hash,
-    }];
-
-    // 2. Estimate gas and get block info
-    const gasResult = await thorClient.gas.estimateGas(clauses, account);
-    const blockRef = thorClient.blocks.getBestBlockRef();
-    const chainTag = thorClient.thor.getChainTag();
-    
-    const body = {
-        clauses,
-        gas: gasResult.totalGas,
-        blockRef: await blockRef,
-        chainTag: await chainTag,
-        gasPriceCoef: 128,
-        expiration: 32,
-        dependsOn: null,
-        nonce: Date.now(),
-    };
-
-    // 3. Sign and send the transaction
-    const rawTransaction = TransactionHandler.encode(body, false);
-    const signature = secp256k1.sign(TransactionHandler.signingHash(body), Buffer.from(privateKey, 'hex'));
-    const signedTx = {
-        raw: rawTransaction,
-        signature: signature,
-        origin: account
-    };
-
-    const sentTx = await provider.sendTransaction(signedTx);
-
-    // 4. Respond with the transaction ID
-    return buildSuccessResponse(res, {
-      message: "Transaction sent successfully!",
-      transactionId: sentTx.id
-    });
-
-  } catch (error) {
-    console.error("Vechain SDK Error:", error);
-    return buildErrorResponse(res, 500, 'Internal Server Error', error.message);
-  }
 }
+
